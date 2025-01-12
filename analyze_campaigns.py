@@ -126,16 +126,15 @@ if __name__ == "__main__":
             # Create a copy of top_5_ads and prepare for merging
             merged_df = top_5_ads.copy()
             
-            # Create a mapping based on the order of appearance (since we can't use UUIDs)
-            best_ads_list = best_ads_df['Ad Name'].tolist()
-            ad_name_mapping = {
-                'AD 2': best_ads_list[0],  # First ad in Best performing Ads
-                'AD 4': best_ads_list[1],  # Second ad
-                'AD 12': best_ads_list[2]  # Third ad
+            # Create mapping for the known relationships
+            ad_mapping = {
+                'AD 2': '3b8a4f3f-c7e2-4aaf-a3cf-8f4f91d94670',  # Peace of Mind for Seniors
+                'AD 4': 'f5c6d1f2-6a5b-4f88-b7e3-d3e8464e96d0',  # People Born 1944-1974
+                'AD 12': '7e2148f6-25dc-4719-9c4e-43052a2f0a37'  # Seniors with N0 Life Insurance
             }
             
-            # Apply the mapping
-            merged_df['Ad Name'] = merged_df['Ad name'].map(ad_name_mapping)
+            # Map the Ad names to their UUIDs
+            merged_df['Ad Name'] = merged_df['Ad name'].map(ad_mapping)
             
             # Merge with best_ads_df
             merged_df = pd.merge(
