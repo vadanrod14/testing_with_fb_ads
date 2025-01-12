@@ -100,8 +100,8 @@ def analyze_campaigns(
 if __name__ == "__main__":
     try:
         # Set file paths
-        csv_file_path = '/mnt/data/Historic Report CA.csv'
-        best_ads_path = '/mnt/data/Best performing Ads - Sheet1.csv'
+        csv_file_path = 'Historic Report CA.csv'  # Can be changed to '/mnt/data/Historic Report CA.csv'
+        best_ads_path = 'Best performing Ads - Sheet1.csv'
         
         # Analyze the campaigns
         result = analyze_campaigns(csv_file_path)
