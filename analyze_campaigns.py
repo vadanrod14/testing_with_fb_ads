@@ -24,7 +24,7 @@ def parse_arguments():
     return parser.parse_args()
 
 def validate_dataframe(df: pd.DataFrame) -> bool:
-    """Validate that the dataframe has all required columns."""
+    """Validate that the dataframe has all required columns with correct data types."""
     required_columns = [
         'Campaign name', 'Ad Set Name', 'Ad name', 'Results',
         'Cost per result', 'CPC (cost per link click)', 'Amount spent (GBP)'
@@ -33,6 +33,14 @@ def validate_dataframe(df: pd.DataFrame) -> bool:
     if missing_cols:
         logger.error(f"Missing required columns: {missing_cols}")
         return False
+
+    # Check for numeric data types
+    numeric_columns = ['Results', 'Cost per result', 'CPC (cost per link click)', 'Amount spent (GBP)']
+    for col in numeric_columns:
+        if not pd.api.types.is_numeric_dtype(df[col]):
+            logger.error(f"Column '{col}' must be numeric")
+            return False
+
     return True
 
 def load_and_process_data(file_path: str, min_results: int, min_amount_spent: float) -> pd.DataFrame:
@@ -47,13 +55,19 @@ def load_and_process_data(file_path: str, min_results: int, min_amount_spent: fl
         raise ValueError("Invalid CSV file format")
     
     # Filter campaigns that have been tested enough
+    total_campaigns = len(df)
     tested_campaigns = df[
         (df['Results'] >= min_results) &
         (df['Amount spent (GBP)'] >= min_amount_spent)
     ]
     
-    logger.info(f"Found {len(tested_campaigns)} campaigns meeting minimum thresholds "
-                f"(min_results={min_results}, min_amount_spent={min_amount_spent})")
+    tested_campaigns_count = len(tested_campaigns)
+    filtered_out_count = total_campaigns - tested_campaigns_count
+    
+    logger.info(f"Total campaigns analyzed: {total_campaigns}")
+    logger.info(f"Campaigns meeting thresholds: {tested_campaigns_count}")
+    logger.info(f"Campaigns filtered out: {filtered_out_count}")
+    logger.info(f"Minimum thresholds: results >= {min_results}, amount spent >= {min_amount_spent} GBP")
     
     # Sort by cost per result first, then by CPC
     sorted_campaigns = tested_campaigns.sort_values(
@@ -64,7 +78,7 @@ def load_and_process_data(file_path: str, min_results: int, min_amount_spent: fl
     return sorted_campaigns
 
 def display_results(campaigns: pd.DataFrame) -> None:
-    """Display the sorted campaign results in a formatted table.
+    """Display the sorted campaign results in a formatted table and show top performer stats.
     
     Args:
         campaigns: DataFrame containing the sorted campaign data
@@ -83,6 +97,22 @@ def display_results(campaigns: pd.DataFrame) -> None:
     print("\nTop performing campaigns (sorted by cost per result and CPC):")
     print("=" * 80)
     print(campaigns[columns].to_string(index=False))
+    
+    # Display detailed stats for the best performing campaign
+    best_campaign = campaigns.iloc[0]
+    print("\nBest Performing Campaign Details:")
+    print("=" * 40)
+    print(f"Campaign: {best_campaign['Campaign name']}")
+    print(f"Ad Set: {best_campaign['Ad Set Name']}")
+    print(f"Ad: {best_campaign['Ad name']}")
+    print("-" * 40)
+    print(f"Results: {best_campaign['Results']:,.0f}")
+    print(f"Cost per Result: £{best_campaign['Cost per result']:.2f}")
+    print(f"CPC: £{best_campaign['CPC (cost per link click)']:.2f}")
+    print(f"Total Spent: £{best_campaign['Amount spent (GBP)']:,.2f}")
+    if 'CTR (all)' in campaigns.columns:
+        print(f"CTR: {best_campaign['CTR (all)']:.2%}")
+    print("=" * 40)
 
 def main() -> None:
     """Main function to execute the campaign analysis pipeline."""
