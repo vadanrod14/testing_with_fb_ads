@@ -123,26 +123,18 @@ if __name__ == "__main__":
             # Read the Best performing Ads CSV
             best_ads_df = pd.read_csv('Best performing Ads - Sheet1.csv')
             
-            # Create a copy of top_5_ads and prepare for merging
+            # Create a copy of top_5_ads
             merged_df = top_5_ads.copy()
             
-            # Create mapping for the known relationships
-            ad_mapping = {
-                'AD 2': '3b8a4f3f-c7e2-4aaf-a3cf-8f4f91d94670',  # Peace of Mind for Seniors
-                'AD 4': 'f5c6d1f2-6a5b-4f88-b7e3-d3e8464e96d0',  # People Born 1944-1974
-                'AD 12': '7e2148f6-25dc-4719-9c4e-43052a2f0a37'  # Seniors with N0 Life Insurance
-            }
+            # Print column names for debugging
+            logging.info(f"Best ads columns: {best_ads_df.columns.tolist()}")
+            logging.info(f"Merged df columns: {merged_df.columns.tolist()}")
             
-            # Map the Ad names to their UUIDs
-            merged_df['Ad Name'] = merged_df['Ad name'].map(ad_mapping)
+            # Add content columns from best_ads_df in order
+            merged_df['Primary Text'] = best_ads_df['Primary Text'].values[:len(merged_df)]
+            merged_df['Headline'] = best_ads_df['Headline'].values[:len(merged_df)]
             
-            # Merge with best_ads_df
-            merged_df = pd.merge(
-                merged_df,
-                best_ads_df,
-                on='Ad Name',
-                how='left'
-            )
+            # Keep original order (already sorted by Cost per result)
             
             # Drop unnecessary columns
             merged_df = merged_df.drop(['Image briefing'], axis=1, errors='ignore')
@@ -152,30 +144,10 @@ if __name__ == "__main__":
             print("-" * 100)  # Visual separator
             
             pd.set_option('display.max_colwidth', 100)  # Increase column width for better readability
-            formatted_df = merged_df[[
-                'Ad Name', 'Cost per result', 'Results', 
-                'Amount spent (GBP)', 'Primary Text', 'Headline'
-            ]].copy()
-            
-            # Format numeric columns
-            formatted_df['Cost per result'] = formatted_df['Cost per result'].apply(lambda x: f'£{x:.2f}')
-            formatted_df['Amount spent (GBP)'] = formatted_df['Amount spent (GBP)'].apply(lambda x: f'£{x:,.2f}')
-            
-            # Format text columns to be more readable
-            def format_text(text):
-                if pd.isna(text):
-                    return 'N/A'
-                return text.replace('\n', ' ')
-            
-            formatted_df['Primary Text'] = formatted_df['Primary Text'].apply(format_text)
-            formatted_df['Headline'] = formatted_df['Headline'].apply(format_text)
-            
-            # Keep original Ad name for display
-            merged_df['Original Ad Name'] = merged_df['Ad name']
             
             # Print with better formatting
             print("\nPerformance Metrics:")
-            metrics_df = merged_df[['Original Ad Name', 'Cost per result', 'Results', 'Amount spent (GBP)']].copy()
+            metrics_df = merged_df[['Ad name', 'Cost per result', 'Results', 'Amount spent (GBP)']].copy()
             
             # Format numeric columns for better readability
             metrics_df['Cost per result'] = metrics_df['Cost per result'].apply(lambda x: f'£{x:.2f}')
@@ -187,7 +159,7 @@ if __name__ == "__main__":
             print("\nAd Content Details:")
             for _, row in merged_df.iterrows():
                 print("\n" + "-" * 100)
-                print(f"Campaign Ad Name: {row['Original Ad Name']}")
+                print(f"Campaign Ad Name: {row['Ad name']}")
                 print(f"Primary Text: {textwrap.fill(row['Primary Text'], width=95) if pd.notna(row['Primary Text']) else 'N/A'}")
                 print(f"\nHeadline: {textwrap.fill(row['Headline'], width=95) if pd.notna(row['Headline']) else 'N/A'}")
             print("-" * 100)
