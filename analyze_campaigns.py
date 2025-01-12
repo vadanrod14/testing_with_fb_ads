@@ -13,16 +13,18 @@ logger = logging.getLogger(__name__)
 
 def parse_arguments():
     parser = argparse.ArgumentParser(description="Analyze Facebook ad campaign performance data.")
-    parser.add_argument('--min-results', type=float,
-                      help='Optional: Minimum number of results to consider a campaign tested. If not provided, percentile threshold will be used.')
-    parser.add_argument('--min-amount-spent', type=float,
-                      help='Optional: Minimum amount spent in GBP. If not provided, percentile threshold will be used.')
-    parser.add_argument('--percentile', type=float, default=25.0,
-                      help='Percentile threshold (0-100) for filtering campaigns when min values are not provided. Default: 25.0')
     parser.add_argument('--csv-file', type=str, default='Historic Report CA.csv',
                       help='Path to the CSV file.')
     parser.add_argument('--output-file', type=str, default='sorted_campaigns.csv',
                       help='Path to save the sorted results.')
+    parser.add_argument('--percentile', type=float, default=25.0,
+                      help='Percentile threshold (0-100) for filtering campaigns. Default: 25.0')
+    
+    # Make min-results and min-amount-spent optional and clearly mark them as manual overrides
+    parser.add_argument('--override-min-results', type=float,
+                      help='Override the dynamic threshold with a fixed minimum number of results.')
+    parser.add_argument('--override-min-amount-spent', type=float,
+                      help='Override the dynamic threshold with a fixed minimum amount spent in GBP.')
     
     args = parser.parse_args()
     if args.percentile < 0 or args.percentile > 100:
@@ -146,8 +148,8 @@ def main() -> None:
         # Load and process data
         sorted_campaigns = load_and_process_data(
             args.csv_file,
-            args.min_results,
-            args.min_amount_spent,
+            args.override_min_results,
+            args.override_min_amount_spent,
             args.percentile
         )
         
