@@ -123,49 +123,36 @@ if __name__ == "__main__":
             # Read the Best performing Ads CSV
             best_ads_df = pd.read_csv('Best performing Ads - Sheet1.csv')
             
-            # Function to calculate string similarity
-            def string_similarity(a, b):
-                return SequenceMatcher(None, str(a).lower(), str(b).lower()).ratio()
-
-            # Create a mapping between ads using campaign name and content
-            merged_df = pd.DataFrame()
-            for _, row in top_5_ads.iterrows():
-                ad_name = row['Ad name']
-                campaign_name = row['Campaign name'].lower()
-                
-                # Calculate similarity scores based on campaign name and ad content
-                similarity_scores = []
-                for _, best_ad in best_ads_df.iterrows():
-                    # Check if keywords from campaign name appear in the ad content
-                    campaign_keywords = ['seniors', 'life insurance', 'family']
-                    keyword_matches = sum(1 for kw in campaign_keywords if kw in campaign_name and 
-                                       (kw.lower() in str(best_ad['Primary Text']).lower() or 
-                                        kw.lower() in str(best_ad['Headline']).lower()))
-                    
-                    similarity_scores.append(keyword_matches / len(campaign_keywords))
-                
-                best_match_idx = np.argmax(similarity_scores)
-                best_match_score = similarity_scores[best_match_idx]
-                best_match = best_ads_df.iloc[best_match_idx]
-                
-                logging.info(f"Matching '{ad_name}' (campaign: {campaign_name}) with content: {best_match['Headline']} (score: {best_match_score:.2f})")
-                
-                if best_match_score > 0.3:  # At least 30% of keywords match
-                    merged_row = pd.concat([row, best_match])
-                    logging.info(f"Found match for '{ad_name}'")
-                else:
-                    # If no good match found, create a row with NaN values for best_ads columns
-                    empty_best_ad = pd.Series({col: None for col in best_ads_df.columns})
-                    merged_row = pd.concat([row, empty_best_ad])
-                    logging.info(f"No good match found for '{ad_name}'")
-                merged_df = pd.concat([merged_df, merged_row.to_frame().T], ignore_index=True)
+            # Create a mapping dictionary based on campaign content and ad names
+            ad_mapping = {
+                'AD 2': '3b8a4f3f-c7e2-4aaf-a3cf-8f4f91d94670',  # Peace of Mind for Seniors
+                'AD 4': 'f5c6d1f2-6a5b-4f88-b7e3-d3e8464e96d0',  # People Born 1944-1974
+                'AD 12': '7e2148f6-25dc-4719-9c4e-43052a2f0a37'  # Seniors with N0 Life Insurance
+            }
+            
+            # Create a copy of top_5_ads
+            merged_df = top_5_ads.copy()
+            
+            # Map the UUIDs and merge with best_ads_df
+            merged_df['Ad Name'] = merged_df['Ad name'].map(ad_mapping)
+            merged_df = pd.merge(
+                merged_df,
+                best_ads_df,
+                on='Ad Name',
+                how='left'
+            )
+            
+            # Restore original Ad name
+            merged_df['Ad Name'] = merged_df['Ad name']
+            merged_df = merged_df.drop('Ad name', axis=1)
+            logging.info(f"Merged {len(merged_df)} ads with Best performing Ads data")
             
             print("\nTop 5 Performing Ads with Additional Details:")
             print("-" * 100)  # Visual separator
             
-            pd.set_option('display.max_colwidth', 40)  # Limit column width for better display
+            pd.set_option('display.max_colwidth', 100)  # Increase column width for better readability
             formatted_df = merged_df[[
-                'Ad name', 'Cost per result', 'Results', 
+                'Ad Name', 'Cost per result', 'Results', 
                 'Amount spent (GBP)', 'Primary Text', 'Headline'
             ]].copy()
             
@@ -173,18 +160,26 @@ if __name__ == "__main__":
             formatted_df['Cost per result'] = formatted_df['Cost per result'].apply(lambda x: f'£{x:.2f}')
             formatted_df['Amount spent (GBP)'] = formatted_df['Amount spent (GBP)'].apply(lambda x: f'£{x:,.2f}')
             
-            # Wrap long text
-            def wrap_text(text, width=40):
+            # Format text columns to be more readable
+            def format_text(text):
                 if pd.isna(text):
-                    return None
-                return '\n'.join(textwrap.wrap(str(text), width=width))
+                    return 'N/A'
+                return text.replace('\n', ' ')
             
-            formatted_df['Primary Text'] = formatted_df['Primary Text'].apply(wrap_text)
-            formatted_df['Headline'] = formatted_df['Headline'].apply(wrap_text)
+            formatted_df['Primary Text'] = formatted_df['Primary Text'].apply(format_text)
+            formatted_df['Headline'] = formatted_df['Headline'].apply(format_text)
             
             # Print with better formatting
-            print(formatted_df.to_string(index=False))
-            print("-" * 100)  # Visual separator
+            print("\nPerformance Metrics:")
+            print(formatted_df[['Ad Name', 'Cost per result', 'Results', 'Amount spent (GBP)']].to_string(index=False))
+            
+            print("\nAd Content Details:")
+            for _, row in formatted_df.iterrows():
+                print("\n" + "-" * 80)
+                print(f"Ad Name: {row['Ad Name']}")
+                print(f"Primary Text: {row['Primary Text']}")
+                print(f"Headline: {row['Headline']}")
+            print("-" * 80)
         else:
             print("No campaigns met the analysis criteria")
             
