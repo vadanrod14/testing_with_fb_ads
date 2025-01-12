@@ -120,21 +120,14 @@ if __name__ == "__main__":
             # Get top 5 performing ads
             top_5_ads = result.head(5)
             
-            # Read the Best performing Ads CSV
-            best_ads_df = pd.read_csv('Best performing Ads - Sheet1.csv')
-            
-            # Create a mapping dictionary based on campaign content and ad names
-            ad_mapping = {
-                'AD 2': '3b8a4f3f-c7e2-4aaf-a3cf-8f4f91d94670',  # Peace of Mind for Seniors
-                'AD 4': 'f5c6d1f2-6a5b-4f88-b7e3-d3e8464e96d0',  # People Born 1944-1974
-                'AD 12': '7e2148f6-25dc-4719-9c4e-43052a2f0a37'  # Seniors with N0 Life Insurance
-            }
+            # Read the modified Best performing Ads CSV
+            best_ads_df = pd.read_csv('Best_performing_Ads_modified.csv')
             
             # Create a copy of top_5_ads
             merged_df = top_5_ads.copy()
+            merged_df = merged_df.rename(columns={'Ad name': 'Ad Name'})
             
-            # Map the UUIDs and merge with best_ads_df
-            merged_df['Ad Name'] = merged_df['Ad name'].map(ad_mapping)
+            # Merge with best_ads_df directly on Ad Name
             merged_df = pd.merge(
                 merged_df,
                 best_ads_df,
@@ -142,9 +135,8 @@ if __name__ == "__main__":
                 how='left'
             )
             
-            # Restore original Ad name
-            merged_df['Ad Name'] = merged_df['Ad name']
-            merged_df = merged_df.drop('Ad name', axis=1)
+            # Drop unnecessary columns
+            merged_df = merged_df.drop(['Image briefing'], axis=1, errors='ignore')
             logging.info(f"Merged {len(merged_df)} ads with Best performing Ads data")
             
             print("\nTop 5 Performing Ads with Additional Details:")
