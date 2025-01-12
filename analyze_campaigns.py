@@ -107,34 +107,63 @@ if __name__ == "__main__":
         result = analyze_campaigns(csv_file_path)
         
         if result is not None:
-            # Display results
+            # Configure pandas display options for better readability
             pd.set_option('display.max_columns', None)
             pd.set_option('display.width', None)
+            pd.set_option('display.max_colwidth', 50)  # Limit column width for readability
+            pd.set_option('display.float_format', lambda x: '£{:,.2f}'.format(x) if isinstance(x, float) else str(x))
             print("\nSorted campaigns (by cost per result and CPC):")
             print(result[['Campaign name', 'Ad Set Name', 'Ad name', 'Cost per result', 
                          'CPC (cost per link click)', 'Results', 'Amount spent (GBP)']])
             
             print("\nAnalysis Summary:")
             print(f"Total campaigns analyzed: {len(result)}")
-            print(f"Average Cost per Result: £{result['Cost per result'].mean():.2f}")
-            print(f"Average CPC: £{result['CPC (cost per link click)'].mean():.2f}")
+            print(f"Average Cost per Result: £{result['Cost per result'].mean():,.2f}")
+            print(f"Average CPC: £{result['CPC (cost per link click)'].mean():,.2f}")
             
             # Get top 5 performing ads
             top_5_ads = result.head(5)
             
             # Read and merge with Best performing Ads
-            best_ads_df = pd.read_csv(best_ads_path)
-            merged_df = pd.merge(
-                top_5_ads,
-                best_ads_df,
-                left_on='Ad name',
-                right_on='Ad Name',
-                how='left'
-            )
-            
-            print("\nTop 5 Performing Ads with Additional Details:")
-            print(merged_df[['Ad name', 'Cost per result', 'Results', 
-                           'Amount spent (GBP)', 'Primary Text', 'Headline']])
+            try:
+                if not Path(best_ads_path).is_file():
+                    raise FileNotFoundError(f"Best performing ads file not found: {best_ads_path}")
+                
+                best_ads_df = pd.read_csv(best_ads_path)
+                
+                # Validate required columns in best_ads_df
+                required_best_ads_cols = ['Ad Name', 'Primary Text', 'Headline']
+                missing_cols = [col for col in required_best_ads_cols if col not in best_ads_df.columns]
+                if missing_cols:
+                    raise ValueError(f"Missing required columns in best ads file: {missing_cols}")
+                
+                merged_df = pd.merge(
+                    top_5_ads,
+                    best_ads_df,
+                    left_on='Ad name',
+                    right_on='Ad Name',
+                    how='left'
+                )
+                
+                if merged_df['Primary Text'].isnull().all():
+                    logging.warning("No matches found when merging with Best Performing Ads")
+                
+                print("\nTop 5 Performing Ads with Additional Details:")
+                print(merged_df[['Ad name', 'Cost per result', 'Results', 
+                               'Amount spent (GBP)', 'Primary Text', 'Headline']])
+                               
+            except FileNotFoundError as e:
+                logging.error(str(e))
+                print("\nTop 5 Performing Ads (without additional details):")
+                print(top_5_ads[['Ad name', 'Cost per result', 'Results', 'Amount spent (GBP)']])
+            except ValueError as e:
+                logging.error(str(e))
+                print("\nTop 5 Performing Ads (without additional details):")
+                print(top_5_ads[['Ad name', 'Cost per result', 'Results', 'Amount spent (GBP)']])
+            except Exception as e:
+                logging.error(f"Error merging with best performing ads: {str(e)}")
+                print("\nTop 5 Performing Ads (without additional details):")
+                print(top_5_ads[['Ad name', 'Cost per result', 'Results', 'Amount spent (GBP)']])
         else:
             print("No campaigns met the analysis criteria")
             
