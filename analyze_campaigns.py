@@ -123,17 +123,19 @@ if __name__ == "__main__":
             # Read the Best performing Ads CSV
             best_ads_df = pd.read_csv('Best performing Ads - Sheet1.csv')
             
-            # Create mapping for ad names
-            ad_mapping = {
-                'AD 2': '3b8a4f3f-c7e2-4aaf-a3cf-8f4f91d94670',  # Peace of Mind for Seniors
-                'AD 4': 'f5c6d1f2-6a5b-4f88-b7e3-d3e8464e96d0',  # People Born 1944-1974
-                'AD 12': '7e2148f6-25dc-4719-9c4e-43052a2f0a37'  # Seniors with N0 Life Insurance
+            # Create a copy of top_5_ads and prepare for merging
+            merged_df = top_5_ads.copy()
+            
+            # Create a mapping based on the order of appearance (since we can't use UUIDs)
+            best_ads_list = best_ads_df['Ad Name'].tolist()
+            ad_name_mapping = {
+                'AD 2': best_ads_list[0],  # First ad in Best performing Ads
+                'AD 4': best_ads_list[1],  # Second ad
+                'AD 12': best_ads_list[2]  # Third ad
             }
             
-            # Create a copy of top_5_ads
-            merged_df = top_5_ads.copy()
-            merged_df = merged_df.rename(columns={'Ad name': 'Original Ad Name'})
-            merged_df['Ad Name'] = merged_df['Original Ad Name'].map(ad_mapping)
+            # Apply the mapping
+            merged_df['Ad Name'] = merged_df['Ad name'].map(ad_name_mapping)
             
             # Merge with best_ads_df
             merged_df = pd.merge(
@@ -152,7 +154,7 @@ if __name__ == "__main__":
             
             pd.set_option('display.max_colwidth', 100)  # Increase column width for better readability
             formatted_df = merged_df[[
-                'Original Ad Name', 'Cost per result', 'Results', 
+                'Ad Name', 'Cost per result', 'Results', 
                 'Amount spent (GBP)', 'Primary Text', 'Headline'
             ]].copy()
             
@@ -169,14 +171,22 @@ if __name__ == "__main__":
             formatted_df['Primary Text'] = formatted_df['Primary Text'].apply(format_text)
             formatted_df['Headline'] = formatted_df['Headline'].apply(format_text)
             
+            # Keep original Ad name for display
+            merged_df['Original Ad Name'] = merged_df['Ad name']
+            
             # Print with better formatting
             print("\nPerformance Metrics:")
-            metrics_df = formatted_df[['Original Ad Name', 'Cost per result', 'Results', 'Amount spent (GBP)']]
-            metrics_df = metrics_df.rename(columns={'Original Ad Name': 'Ad Name'})
+            metrics_df = merged_df[['Original Ad Name', 'Cost per result', 'Results', 'Amount spent (GBP)']].copy()
+            
+            # Format numeric columns for better readability
+            metrics_df['Cost per result'] = metrics_df['Cost per result'].apply(lambda x: f'£{x:.2f}')
+            metrics_df['Amount spent (GBP)'] = metrics_df['Amount spent (GBP)'].apply(lambda x: f'£{x:,.2f}')
+            metrics_df['Results'] = metrics_df['Results'].apply(lambda x: f'{x:,}')
+            
             print(metrics_df.to_string(index=False))
             
             print("\nAd Content Details:")
-            for _, row in formatted_df.iterrows():
+            for _, row in merged_df.iterrows():
                 print("\n" + "-" * 100)
                 print(f"Campaign Ad Name: {row['Original Ad Name']}")
                 print(f"Primary Text: {textwrap.fill(row['Primary Text'], width=95) if pd.notna(row['Primary Text']) else 'N/A'}")
