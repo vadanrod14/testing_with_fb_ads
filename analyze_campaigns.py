@@ -13,15 +13,21 @@ logger = logging.getLogger(__name__)
 
 def parse_arguments():
     parser = argparse.ArgumentParser(description="Analyze Facebook ad campaign performance data.")
-    parser.add_argument('--min-results', type=int, default=100,
-                      help='Minimum number of results to consider a campaign tested.')
-    parser.add_argument('--min-amount-spent', type=float, default=1000,
-                      help='Minimum amount spent in GBP.')
+    parser.add_argument('--min-results', type=float,
+                      help='Optional: Minimum number of results to consider a campaign tested. If not provided, percentile threshold will be used.')
+    parser.add_argument('--min-amount-spent', type=float,
+                      help='Optional: Minimum amount spent in GBP. If not provided, percentile threshold will be used.')
+    parser.add_argument('--percentile', type=float, default=25.0,
+                      help='Percentile threshold (0-100) for filtering campaigns when min values are not provided. Default: 25.0')
     parser.add_argument('--csv-file', type=str, default='Historic Report CA.csv',
                       help='Path to the CSV file.')
     parser.add_argument('--output-file', type=str, default='sorted_campaigns.csv',
                       help='Path to save the sorted results.')
-    return parser.parse_args()
+    
+    args = parser.parse_args()
+    if args.percentile < 0 or args.percentile > 100:
+        parser.error("--percentile must be between 0 and 100")
+    return args
 
 def validate_dataframe(df: pd.DataFrame) -> bool:
     """Validate that the dataframe has all required columns with correct data types."""
@@ -43,8 +49,15 @@ def validate_dataframe(df: pd.DataFrame) -> bool:
 
     return True
 
-def load_and_process_data(file_path: str, min_results: int, min_amount_spent: float) -> pd.DataFrame:
-    """Load and process campaign data from CSV file."""
+def load_and_process_data(file_path: str, min_results: float = None, min_amount_spent: float = None, percentile: float = 25.0) -> pd.DataFrame:
+    """Load and process campaign data from CSV file using dynamic thresholds.
+    
+    Args:
+        file_path: Path to the CSV file
+        min_results: Optional minimum number of results threshold
+        min_amount_spent: Optional minimum amount spent threshold
+        percentile: Percentile to use for dynamic thresholds (0-100)
+    """
     logger.info(f"Loading data from {file_path}")
     
     # Read the CSV file
@@ -53,6 +66,17 @@ def load_and_process_data(file_path: str, min_results: int, min_amount_spent: fl
     # Validate dataframe
     if not validate_dataframe(df):
         raise ValueError("Invalid CSV file format")
+    
+    # Calculate dynamic thresholds using specified percentile if not provided
+    quantile = percentile / 100.0
+    if min_results is None:
+        min_results = df['Results'].quantile(quantile)
+    if min_amount_spent is None:
+        min_amount_spent = df['Amount spent (GBP)'].quantile(quantile)
+        
+    logger.info(f"Using thresholds - Min Results: {min_results:.2f}, Min Amount Spent: £{min_amount_spent:.2f}")
+    if min_results is None or min_amount_spent is None:
+        logger.info(f"Dynamic thresholds based on {percentile}th percentile")
     
     # Filter campaigns that have been tested enough
     total_campaigns = len(df)
@@ -123,7 +147,8 @@ def main() -> None:
         sorted_campaigns = load_and_process_data(
             args.csv_file,
             args.min_results,
-            args.min_amount_spent
+            args.min_amount_spent,
+            args.percentile
         )
         
         # Display results
